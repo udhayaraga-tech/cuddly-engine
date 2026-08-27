@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Plagiarism & Similarity Engine</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --primary: #4F46E5;
@@ -87,11 +88,31 @@
             box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
         }
 
+        .btn-export {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
         .results { display: none; margin-top: 32px; padding-top: 32px; border-top: 1px solid var(--border); }
         .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 20px 0 28px 0; }
         .metric-card { background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
         .metric-card h3 { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
         .metric-card p { font-size: 32px; font-weight: 700; color: #38BDF8; }
+
+        .analytics-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.5);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 28px;
+            border: 1px solid var(--border);
+        }
+
+        .chart-wrapper { max-width: 260px; margin: 0 auto; }
 
         .previews { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .preview-box {
@@ -99,12 +120,35 @@
             border: 1px solid var(--border);
             border-radius: 10px;
             padding: 14px;
-            height: 180px;
+            height: 250px;
             overflow-y: auto;
             font-size: 13px;
             line-height: 1.6;
             color: #CBD5E1;
             white-space: pre-wrap;
+            scroll-behavior: smooth;
+        }
+
+        mark.match-mark {
+            background-color: #f59e0b;
+            color: #000;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        mark.match-mark:hover {
+            background-color: #38bdf8;
+            color: #000;
+            box-shadow: 0 0 8px #38bdf8;
+        }
+
+        mark.active-target {
+            background-color: #ec4899 !important;
+            color: #fff !important;
+            box-shadow: 0 0 12px #ec4899;
         }
     </style>
 </head>
@@ -124,13 +168,13 @@
                     <h4>Primary Text / Document</h4>
                     <textarea id="text1" placeholder="Paste text directly here..."></textarea>
                     <div class="divider-text">— OR UPLOAD FILE —</div>
-                    <input type="file" id="doc1" accept=".txt,.pdf">
+                    <input type="file" id="doc1" accept=".txt,.pdf,.docx">
                 </div>
                 <div class="input-group">
                     <h4>Comparison Text / Document</h4>
                     <textarea id="text2" placeholder="Paste text directly here..."></textarea>
                     <div class="divider-text">— OR UPLOAD FILE —</div>
-                    <input type="file" id="doc2" accept=".txt,.pdf">
+                    <input type="file" id="doc2" accept=".txt,.pdf,.docx">
                 </div>
             </div>
             <button type="submit" class="btn" id="submitBtn">Run Deep Analysis</button>
@@ -157,13 +201,26 @@
                 </div>
             </div>
 
+            <div class="analytics-container">
+                <div class="chart-wrapper">
+                    <canvas id="similarityChart"></canvas>
+                </div>
+                <div>
+                    <h3 style="font-size: 16px; margin-bottom: 8px;">Content Composition</h3>
+                    <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
+                        This chart breaks down the similarity composition calculated by our deep-scan pipeline.
+                    </p>
+                    <button class="btn btn-export" onclick="exportPDF()">Download PDF Report</button>
+                </div>
+            </div>
+
             <div class="previews">
                 <div>
-                    <h4 style="margin-bottom: 8px;">Primary Content (Highlighted)</h4>
+                    <h4 style="margin-bottom: 8px;">Primary Content (Click highlight to jump match)</h4>
                     <div class="preview-box" id="text1Preview"></div>
                 </div>
                 <div>
-                    <h4 style="margin-bottom: 8px;">Comparison Content</h4>
+                    <h4 style="margin-bottom: 8px;">Comparison Content (Sync Target)</h4>
                     <div class="preview-box" id="text2Preview"></div>
                 </div>
             </div>
@@ -172,6 +229,21 @@
 </div>
 
 <script>
+    const box1 = document.getElementById('text1Preview');
+    const box2 = document.getElementById('text2Preview');
+    let isSyncingScroll = false;
+    let chartInstance = null;
+    let currentResults = {};
+
+    box1.addEventListener('scroll', () => {
+        if (!isSyncingScroll) {
+            isSyncingScroll = true;
+            const percentage = box1.scrollTop / (box1.scrollHeight - box1.clientHeight);
+            box2.scrollTop = percentage * (box2.scrollHeight - box2.clientHeight);
+            setTimeout(() => isSyncingScroll = false, 50);
+        }
+    });
+
     document.getElementById('uploadForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -199,14 +271,17 @@
             const data = await response.json();
 
             if (data.status === 'success') {
+                currentResults = data.results;
                 document.getElementById('directScore').innerText = data.results.direct_copy + '%';
                 document.getElementById('paraScore').innerText = data.results.paraphrase_score + '%';
                 document.getElementById('aiScore').innerText = data.results.ai_probability + '%';
                 document.getElementById('overallScore').innerText = data.results.overall_score + '%';
 
-                document.getElementById('text1Preview').innerHTML = data.highlighted_html1;
-                document.getElementById('text2Preview').innerText = data.text2_preview;
+                box1.innerHTML = data.highlighted_html1;
+                box2.innerHTML = data.highlighted_html2;
 
+                renderChart(data.results);
+                attachMatchClickListeners();
                 document.getElementById('resultsSection').style.display = 'block';
             } else {
                 alert('Error: ' + data.error);
@@ -218,6 +293,67 @@
             btn.disabled = false;
         }
     });
+
+    function renderChart(results) {
+        const ctx = document.getElementById('similarityChart').getContext('2d');
+        if (chartInstance) chartInstance.destroy();
+
+        chartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Direct Copy', 'Paraphrase', 'AI Generated', 'Unique Content'],
+                datasets: [{
+                    data: [results.direct_copy, results.paraphrase_score, results.ai_probability, results.unique_score],
+                    backgroundColor: ['#38BDF8', '#A855F7', '#EAB308', '#10B981'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    function attachMatchClickListeners() {
+        document.querySelectorAll('#text1Preview mark.match-mark').forEach(mark => {
+            mark.addEventListener('click', () => {
+                const targetId = mark.getAttribute('data-match');
+                const targetElem = document.getElementById(targetId);
+
+                document.querySelectorAll('mark').forEach(m => m.classList.remove('active-target'));
+
+                if (targetElem) {
+                    mark.classList.add('active-target');
+                    targetElem.classList.add('active-target');
+                    targetElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            });
+        });
+    }
+
+    async function exportPDF() {
+        try {
+            const response = await fetch('http://127.0.0.1:5000/api/download-report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(currentResults)
+            });
+
+            if (!response.ok) throw new Error("Download request failed.");
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Plagiarism_Analysis_Report.pdf';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } catch (err) {
+            alert("Error downloading PDF report: " + err.message);
+        }
+    }
 </script>
 
 </body>
