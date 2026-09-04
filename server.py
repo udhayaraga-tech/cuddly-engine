@@ -34,11 +34,9 @@ def save_document_to_disk(filename, content):
     """Saves text content to a physical file inside the saved_documents directory."""
     if not filename or not content.strip():
         return
-    # Ensure safe filename
     safe_name = re.sub(r'[^\w\s.-]', '_', filename)
     if not safe_name.endswith('.txt'):
         safe_name = f"{os.path.splitext(safe_name)[0]}.txt"
-    
     file_path = os.path.join(UPLOAD_FOLDER, safe_name)
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write(content)
@@ -48,7 +46,6 @@ def load_saved_documents():
     saved_docs = []
     if not os.path.exists(UPLOAD_FOLDER):
         return saved_docs
-
     for file_name in os.listdir(UPLOAD_FOLDER):
         file_path = os.path.join(UPLOAD_FOLDER, file_name)
         if os.path.isfile(file_path) and not file_name.startswith('.'):
@@ -67,17 +64,13 @@ def load_saved_documents():
 def get_cosine_similarity(text1, text2):
     words1 = [w.lower() for w in text1.split() if w.isalnum()]
     words2 = [w.lower() for w in text2.split() if w.isalnum()]
-    
     vec1 = Counter(words1)
     vec2 = Counter(words2)
-    
     intersection = set(vec1.keys()) & set(vec2.keys())
     numerator = sum([vec1[x] * vec2[x] for x in intersection])
-
     sum1 = sum([vec1[x]**2 for x in vec1.keys()])
     sum2 = sum([vec2[x]**2 for x in vec2.keys()])
     denominator = math.sqrt(sum1) * math.sqrt(sum2)
-
     if not denominator:
         return 0.0
     return round((float(numerator) / denominator) * 100, 2)
@@ -99,16 +92,14 @@ def calculate_pair_similarity(doc1_obj, doc2_obj):
 
     words1 = text1.split()
     words2 = text2.split()
-
     matcher_words = SequenceMatcher(None, words1, words2)
     matching_blocks = matcher_words.get_matching_blocks()
-
     significant_matching_blocks = []
+
     for block in matching_blocks:
         if block.size >= 2:
             matched_words = [w.lower().strip(".,()[]{}:;'\"") for w in words1[block.a : block.a + block.size]]
             unique_meaningful_words = [w for w in matched_words if w and w not in STOP_WORDS]
-            
             matched_phrase = " ".join(words1[block.a : block.a + block.size])
             if len(unique_meaningful_words) >= 2 or len(matched_phrase) >= 15:
                 significant_matching_blocks.append(block)
@@ -119,7 +110,6 @@ def calculate_pair_similarity(doc1_obj, doc2_obj):
     direct_copy = round((exact_match_words / total_words) * 100, 2)
     semantic_sim = get_cosine_similarity(text1, text2)
     paraphrase_sim = round((SequenceMatcher(None, text1, text2).ratio() * 50) + (semantic_sim * 0.5), 2)
-    
     ai_prob = round(min(SequenceMatcher(None, text1, text2).ratio() * 35 + 5, 95.0), 1)
     overall_risk = round((direct_copy * 0.45) + (paraphrase_sim * 0.35) + (ai_prob * 0.20), 2)
     unique_content = round(max(0.0, 100.0 - overall_risk), 2)
@@ -160,23 +150,80 @@ def calculate_pair_similarity(doc1_obj, doc2_obj):
 def home():
     return render_template('index.html')
 
+@app.route('/saved-docs', methods=['GET'])
+def list_saved_docs():
+    """Returns a list of all file names currently stored in saved_documents folder."""
+    files = []
+    if os.path.exists(UPLOAD_FOLDER):
+        for f in os.listdir(UPLOAD_FOLDER):
+            if os.path.isfile(os.path.join(UPLOAD_FOLDER, f)) and not f.startswith('.'):
+                files.append(f)
+    return jsonify({'saved_files': files})
+
+@app.route('/saved-docs/delete', methods=['POST'])
+def delete_saved_doc():
+    """Deletes a specific document or purges all documents for new semester."""
+    data = request.get_json() or {}
+    filename = data.get('filename')
+    purge_all = data.get('purge_all', False)
+
+    if purge_all:
+        for f in os.listdir(UPLOAD_FOLDER):
+            file_path = os.path.join(UPLOAD_FOLDER, f)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        return jsonify({'status': 'success', 'message': 'All saved documents purged for the new semester.'})
+
+    if filename:
+        safe_name = os.path.basename(filename)
+        file_path = os.path.join(UPLOAD_FOLDER, safe_name)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return jsonify({'status': 'success', 'message': f'Deleted {safe_name}'})
+        
+    return jsonify({'status': 'error', 'message': 'File not found'}), 400
+
+@app.route('/saved-docs/update', methods=['POST'])
+def update_saved_doc():
+    """Updates the content of an existing saved document."""
+    data = request.get_json() or {}
+    filename = data.get('filename')
+    content = data.get('content', '')
+
+    if filename and content.strip():
+        safe_name = os.path.basename(filename)
+        file_path = os.path.join(UPLOAD_FOLDER, safe_name)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        return jsonify({'status': 'success', 'message': f'Updated {safe_name}'})
+
+    return jsonify({'status': 'error', 'message': 'Invalid payload'}), 400
+
 @app.route('/analyze', methods=['POST'])
 def analyze():
     data = request.get_json() or {}
     primary_docs = data.get('primary_docs', [])
     comparison_docs = data.get('comparison_docs', [])
+    
+    use_saved_docs = data.get('use_saved_docs', False)
+    selected_saved_files = data.get('selected_saved_files', [])
 
-    # Step 1: Save newly incoming uploaded files physically into saved_documents/
+    # Save newly uploaded files physically to disk
     for doc in primary_docs + comparison_docs:
         doc_name = doc.get('name', '')
         doc_text = doc.get('text', '')
         if doc_name and doc_text.strip() and not doc_name.startswith('[Saved]'):
             save_document_to_disk(doc_name, doc_text)
 
-    # Step 2: Fetch all historical documents currently residing inside saved_documents/
-    saved_history = load_saved_documents()
+    # Conditionally load saved documents based on user toggle
+    saved_history = []
+    if use_saved_docs:
+        all_saved = load_saved_documents()
+        if selected_saved_files:
+            saved_history = [doc for doc in all_saved if os.path.basename(doc['name'].replace('[Saved] ', '')) in selected_saved_files]
+        else:
+            saved_history = all_saved
 
-    # Step 3: Consolidate active uploads + historical repository files into a unified pool
     all_docs = []
     seen_names = set()
 
@@ -187,7 +234,6 @@ def analyze():
             seen_names.add(clean_key)
             all_docs.append(doc)
 
-    # Step 4: Run matrix comparison across all active and saved files
     batch_results = []
     num_docs = len(all_docs)
     for i in range(num_docs):

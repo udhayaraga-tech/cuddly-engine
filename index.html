@@ -62,6 +62,21 @@
         </div>
       </div>
 
+      <div class="saved-docs-panel" style="margin: 15px 0; padding: 12px; border: 1px solid #334155; border-radius: 8px;">
+        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: #f8fafc;">
+          <input type="checkbox" id="toggleSavedDocs" onchange="toggleSavedDocsList()">
+          <strong>Compare against Repository (Old Saved Documents)</strong>
+        </label>
+
+        <div id="savedDocsContainer" class="hidden" style="margin-top: 10px; padding-left: 24px;">
+          <p style="font-size: 12px; color: #94a3b8;">Select specific past documents to compare against, or leave all checked:</p>
+          <div id="savedDocsFileList" style="max-height: 120px; overflow-y: auto; margin-bottom: 8px;"></div>
+          <button type="button" onclick="purgeAllSavedDocs()" style="background: #ef4444; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;">
+            Clear Repository for New Semester
+          </button>
+        </div>
+      </div>
+
       <button class="btn-primary" onclick="runAnalysis()">Run Multi-File Deep Analysis</button>
 
       <div id="batchSelectorContainer" class="batch-selector-bar hidden">

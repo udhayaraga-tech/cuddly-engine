@@ -84,12 +84,61 @@ function renderCompositionChart(directCopy, paraphrase, unique) {
   });
 }
 
+// Saved Docs API Handlers
+async function loadSavedDocsList() {
+  const res = await fetch('/saved-docs');
+  const data = await res.json();
+  const listEl = document.getElementById('savedDocsFileList');
+  if (!listEl) return;
+  
+  listEl.innerHTML = '';
+  data.saved_files.forEach(file => {
+    listEl.innerHTML += `
+      <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+        <label style="color: #cbd5e1;">
+          <input type="checkbox" class="saved-file-checkbox" value="${file}" checked> ${file}
+        </label>
+        <button onclick="deleteSingleSavedDoc('${file}')" style="background: transparent; color: #f87171; border: none; cursor: pointer;">Delete</button>
+      </div>`; 
+  });
+}
+
+function toggleSavedDocsList() {
+  const isChecked = document.getElementById('toggleSavedDocs').checked;
+  const container = document.getElementById('savedDocsContainer');
+  if (isChecked) {
+    container.classList.remove('hidden');
+    loadSavedDocsList();
+  } else {
+    container.classList.add('hidden');
+  }
+}
+
+async function deleteSingleSavedDoc(filename) {
+  if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
+  await fetch('/saved-docs/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename })
+  });
+  loadSavedDocsList();
+}
+
+async function purgeAllSavedDocs() {
+  if (!confirm("Clear all repository documents for the new semester? This cannot be undone.")) return;
+  await fetch('/saved-docs/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ purge_all: true })
+  });
+  loadSavedDocsList();
+}
+
 // Trigger Full Matrix Cross-Analysis
 async function runAnalysis() {
   let primaryDocs = [...uploadedPrimaryFiles];
   let comparisonDocs = [...uploadedComparisonFiles];
 
-  // Fallback to text box content if no files uploaded
   if (primaryDocs.length === 0 && document.getElementById('text1').value.trim()) {
     primaryDocs.push({ name: "Primary Input Text", text: document.getElementById('text1').value });
   }
@@ -97,13 +146,21 @@ async function runAnalysis() {
     comparisonDocs.push({ name: "Comparison Input Text", text: document.getElementById('text2').value });
   }
 
+  const useSavedDocs = document.getElementById('toggleSavedDocs').checked;
+  const selectedSavedFiles = Array.from(document.querySelectorAll('.saved-file-checkbox:checked')).map(cb => cb.value);
+
   try {
     const response = await fetch('/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ primary_docs: primaryDocs, comparison_docs: comparisonDocs })
+      body: JSON.stringify({ 
+        primary_docs: primaryDocs, 
+        comparison_docs: comparisonDocs,
+        use_saved_docs: useSavedDocs,
+        selected_saved_files: selectedSavedFiles
+      })
     });
-
+    
     const data = await response.json();
     activeBatchResults = data.batch_results;
 
@@ -123,7 +180,6 @@ function setupBatchSelector(results) {
   const container = document.getElementById('batchSelectorContainer');
   const select = document.getElementById('batchSelect');
   if (!container || !select) return;
-
   select.innerHTML = '';
 
   if (results.length > 0) {
@@ -141,49 +197,41 @@ function setupBatchSelector(results) {
 function loadBatchPair(index) {
   const data = activeBatchResults[index];
   if (!data) return;
-
   document.getElementById('directCopyScore').innerText = `${data.direct_copy}%`;
   document.getElementById('paraphraseScore').innerText = `${data.paraphrase_similarity}%`;
   document.getElementById('aiProbScore').innerText = `${data.ai_probability}%`;
   document.getElementById('overallRiskScore').innerText = `${data.overall_risk}%`;
-
   document.getElementById('primaryContentPreview').innerHTML = data.highlighted_doc1;
   document.getElementById('comparisonContentPreview').innerHTML = data.highlighted_doc2;
-
   renderCompositionChart(data.direct_copy, data.paraphrase_similarity, data.unique_content);
 }
 
-// Executive PDF Report Generator (Prints ALL Uploaded Files & All Pair Matrix Results)
+// Executive PDF Report Generator
 function downloadExecutivePDFReport() {
   if (!activeBatchResults || activeBatchResults.length === 0) {
     alert("No scan results available to print. Please run the analysis first.");
     return;
   }
-
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   const timestamp = new Date().toLocaleString();
 
-  // --- PAGE 1: HEADER & MASTER COMPARISON MATRIX TABLE ---
+  // Page 1: Header & Summary Matrix
   doc.setFillColor(15, 23, 42);
   doc.rect(0, 0, 210, 40, 'F');
-
   doc.setFontSize(20);
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.text("FULL BATCH MULTI-FILE SCAN REPORT", 14, 22);
-
   doc.setFontSize(10);
   doc.setTextColor(148, 163, 184);
   doc.setFont("helvetica", "normal");
   doc.text(`AI Deep-Scan Engine v4.0 | Generated: ${timestamp}`, 14, 32);
-
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
   doc.text("Master Pairwise Comparison Summary", 14, 52);
 
-  // Build matrix summary rows for ALL document pairs
   const summaryRows = activeBatchResults.map((res, index) => [
     `#${index + 1}`,
     res.doc1_name,
@@ -215,11 +263,9 @@ function downloadExecutivePDFReport() {
     }
   });
 
-  // --- SUBSEQUENT PAGES: INDIVIDUAL PAIR DETAILED BREAKDOWNS ---
+  // Subsequent Pages: Pair breakdowns
   activeBatchResults.forEach((pair, idx) => {
     doc.addPage();
-
-    // Section Banner for the Specific Pair
     doc.setFillColor(30, 41, 59);
     doc.rect(0, 0, 210, 25, 'F');
     doc.setFontSize(12);
@@ -227,7 +273,6 @@ function downloadExecutivePDFReport() {
     doc.setFont("helvetica", "bold");
     doc.text(`Pair Breakdown #${idx + 1}: ${pair.doc1_name}  VS  ${pair.doc2_name}`, 14, 16);
 
-    // Pair Metrics Table
     doc.autoTable({
       startY: 32,
       head: [['Metric Parameter', 'Match Ratio', 'Status Rating', 'Threshold Limit']],
@@ -254,13 +299,11 @@ function downloadExecutivePDFReport() {
       }
     });
 
-    // Snippets Section
     let currentY = doc.lastAutoTable.finalY + 10;
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
     doc.text("Top Detected Matching Passages:", 14, currentY);
-
     currentY += 8;
 
     if (pair.matched_snippets && pair.matched_snippets.length > 0) {
@@ -269,21 +312,17 @@ function downloadExecutivePDFReport() {
           doc.addPage();
           currentY = 20;
         }
-
         doc.setFillColor(254, 243, 199);
         doc.rect(14, currentY, 182, 12, 'F');
-
         doc.setTextColor(180, 83, 9);
         doc.setFontSize(9);
         doc.setFont("helvetica", "bold");
         doc.text(`Match ${sIdx + 1}:`, 18, currentY + 8);
-
         doc.setTextColor(51, 65, 85);
         doc.setFont("helvetica", "normal");
-        const cleanSnippet = snippet.replace(/<[^>]*>?/gm, ''); // strip HTML tags
+        const cleanSnippet = snippet.replace(/<[^>]*>?/gm, '');
         const truncated = cleanSnippet.length > 80 ? cleanSnippet.substring(0, 80) + "..." : cleanSnippet;
         doc.text(truncated, 36, currentY + 8);
-
         currentY += 15;
       });
     } else {
@@ -294,7 +333,6 @@ function downloadExecutivePDFReport() {
     }
   });
 
-  // Footer / Total Page Numbers
   const totalPages = doc.internal.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
@@ -315,7 +353,6 @@ function jumpToMatch(currentId, targetId) {
   document.querySelectorAll('mark.match-mark').forEach(el => {
     el.classList.remove('active-target');
   });
-
   const currentEl = document.getElementById(currentId);
   const targetEl = document.getElementById(targetId);
 
@@ -323,7 +360,6 @@ function jumpToMatch(currentId, targetId) {
     currentEl.classList.add('active-target');
     scrollToInsideContainer(currentEl);
   }
-
   if (targetEl) {
     targetEl.classList.add('active-target');
     scrollToInsideContainer(targetEl);
@@ -333,11 +369,9 @@ function jumpToMatch(currentId, targetId) {
 function scrollToInsideContainer(element) {
   const container = element.closest('.scroll-content') || element.closest('#primaryContentPreview') || element.closest('#comparisonContentPreview');
   if (!container) return;
-
   const containerTop = container.getBoundingClientRect().top;
   const elementTop = element.getBoundingClientRect().top;
   const relativeOffset = elementTop - containerTop - (container.clientHeight / 2) + (element.clientHeight / 2);
-
   container.scrollTo({
     top: container.scrollTop + relativeOffset,
     behavior: 'smooth'
