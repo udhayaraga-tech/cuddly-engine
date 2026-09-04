@@ -5,7 +5,8 @@ from collections import Counter
 from difflib import SequenceMatcher
 from flask import Flask, render_template, request, jsonify
 
-app = Flask(__name__, static_folder='.', template_folder='.', static_url_path='')
+# Configured for standard Flask folder layout
+app = Flask(__name__, static_folder='static', template_folder='.')
 
 # Directory setup for storing uploaded files
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_documents')
@@ -244,4 +245,5 @@ def analyze():
     return jsonify({'batch_results': batch_results})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
