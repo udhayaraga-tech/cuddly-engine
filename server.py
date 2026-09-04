@@ -1,10 +1,15 @@
-from flask import Flask, render_template, request, jsonify
-from difflib import SequenceMatcher
+import os
 import math
 import re
 from collections import Counter
+from difflib import SequenceMatcher
+from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__, static_folder='.', template_folder='.', static_url_path='')
+
+# Directory setup for storing uploaded files
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_documents')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Defined set of common stop words to exclude from triggering highlight matches
 STOP_WORDS = {
@@ -24,6 +29,40 @@ STOP_WORDS = {
     'who\'s', 'whom', 'why', 'why\'s', 'with', 'won\'t', 'would', 'wouldn\'t', 'you', 'you\'d', 'you\'ll', 
     'you\'re', 'you\'ve', 'your', 'yours', 'yourself', 'yourselves', 'select', 'from', 'where', 'and', 'or'
 }
+
+def save_document_to_disk(filename, content):
+    """Saves text content to a physical file inside the saved_documents directory."""
+    if not filename or not content.strip():
+        return
+    # Ensure safe filename
+    safe_name = re.sub(r'[^\w\s.-]', '_', filename)
+    if not safe_name.endswith('.txt'):
+        safe_name = f"{os.path.splitext(safe_name)[0]}.txt"
+    
+    file_path = os.path.join(UPLOAD_FOLDER, safe_name)
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+def load_saved_documents():
+    """Reads all previously saved files from the saved_documents folder."""
+    saved_docs = []
+    if not os.path.exists(UPLOAD_FOLDER):
+        return saved_docs
+
+    for file_name in os.listdir(UPLOAD_FOLDER):
+        file_path = os.path.join(UPLOAD_FOLDER, file_name)
+        if os.path.isfile(file_path) and not file_name.startswith('.'):
+            try:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    text_content = f.read()
+                    if text_content.strip():
+                        saved_docs.append({
+                            'name': f"[Saved] {file_name}",
+                            'text': text_content
+                        })
+            except Exception as e:
+                print(f"Error reading {file_name}: {e}")
+    return saved_docs
 
 def get_cosine_similarity(text1, text2):
     words1 = [w.lower() for w in text1.split() if w.isalnum()]
@@ -64,15 +103,12 @@ def calculate_pair_similarity(doc1_obj, doc2_obj):
     matcher_words = SequenceMatcher(None, words1, words2)
     matching_blocks = matcher_words.get_matching_blocks()
 
-    # Filter out blocks that only contain stop words or short generic terms
     significant_matching_blocks = []
     for block in matching_blocks:
         if block.size >= 2:
             matched_words = [w.lower().strip(".,()[]{}:;'\"") for w in words1[block.a : block.a + block.size]]
-            # Count words that are NOT stop words
             unique_meaningful_words = [w for w in matched_words if w and w not in STOP_WORDS]
             
-            # Highlight only if the block contains at least 2 unique non-stop words OR is longer than 15 characters
             matched_phrase = " ".join(words1[block.a : block.a + block.size])
             if len(unique_meaningful_words) >= 2 or len(matched_phrase) >= 15:
                 significant_matching_blocks.append(block)
@@ -130,19 +166,29 @@ def analyze():
     primary_docs = data.get('primary_docs', [])
     comparison_docs = data.get('comparison_docs', [])
 
-    # Consolidate all uploaded documents into a single unique pool
+    # Step 1: Save newly incoming uploaded files physically into saved_documents/
+    for doc in primary_docs + comparison_docs:
+        doc_name = doc.get('name', '')
+        doc_text = doc.get('text', '')
+        if doc_name and doc_text.strip() and not doc_name.startswith('[Saved]'):
+            save_document_to_disk(doc_name, doc_text)
+
+    # Step 2: Fetch all historical documents currently residing inside saved_documents/
+    saved_history = load_saved_documents()
+
+    # Step 3: Consolidate active uploads + historical repository files into a unified pool
     all_docs = []
     seen_names = set()
 
-    for doc in primary_docs + comparison_docs:
+    for doc in primary_docs + comparison_docs + saved_history:
         name = doc.get('name', 'Untitled')
-        if name not in seen_names and doc.get('text', '').strip():
-            seen_names.add(name)
+        clean_key = name.replace('[Saved] ', '').strip().lower()
+        if clean_key not in seen_names and doc.get('text', '').strip():
+            seen_names.add(clean_key)
             all_docs.append(doc)
 
+    # Step 4: Run matrix comparison across all active and saved files
     batch_results = []
-
-    # Run full N x N pairwise matrix comparison across all unique documents
     num_docs = len(all_docs)
     for i in range(num_docs):
         for j in range(i + 1, num_docs):
