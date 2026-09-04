@@ -3,7 +3,7 @@ import math
 import re
 from collections import Counter
 from difflib import SequenceMatcher
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
 
 # Configured for standard Flask folder layout
 app = Flask(__name__, static_folder='static', template_folder='.')
@@ -150,6 +150,18 @@ def calculate_pair_similarity(doc1_obj, doc2_obj):
 @app.route('/')
 def home():
     return render_template('index.html')
+
+@app.route('/sitemap.xml', methods=['GET'])
+def sitemap():
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>https://plagiarism-checker-pink.vercel.app/</loc>
+        <changefreq>daily</changefreq>
+        <priority>1.0</priority>
+    </url>
+</urlset>"""
+    return Response(xml, mimetype='application/xml')
 
 @app.route('/saved-docs', methods=['GET'])
 def list_saved_docs():
