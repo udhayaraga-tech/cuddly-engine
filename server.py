@@ -4,9 +4,13 @@ import re
 from collections import Counter
 from difflib import SequenceMatcher
 from flask import Flask, render_template, request, jsonify, Response
+from flask_cors import CORS
 
 # Configured for standard Flask folder layout
 app = Flask(__name__, static_folder='static', template_folder='.')
+
+# Explicitly allow cross-origin requests for Vercel and mobile clients
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Directory setup for storing uploaded files
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'saved_documents')
@@ -147,9 +151,10 @@ def calculate_pair_similarity(doc1_obj, doc2_obj):
         'matched_snippets': matched_snippets[:5]
     }
 
-@app.route('/')
-def home():
-    return render_template('index.html')
+# Health Check Endpoint (Prevents Render cold starts)
+@app.route('/', methods=['GET'])
+def health_check():
+    return jsonify({"status": "Engine active and running"}), 200
 
 @app.route('/sitemap.xml', methods=['GET'])
 def sitemap():

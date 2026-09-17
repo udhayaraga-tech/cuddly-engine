@@ -150,7 +150,7 @@ async function purgeAllSavedDocs() {
   }
 }
 
-// Trigger Full Matrix Cross-Analysis
+// Trigger Full Matrix Cross-Analysis (With Wake-Up Handling)
 async function runAnalysis() {
   let primaryDocs = [...uploadedPrimaryFiles];
   let comparisonDocs = [...uploadedComparisonFiles];
@@ -172,18 +172,18 @@ async function runAnalysis() {
     selected_saved_files: selectedSavedFiles
   };
 
+  // Visual status feedback for mobile users
+  const analyzeBtn = document.querySelector('button[onclick="runAnalysis()"]');
+  if (analyzeBtn) analyzeBtn.innerText = "Waking up engine & analyzing... (Please wait)";
+
   try {
     const response = await fetch(`${BACKEND_URL}/analyze`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    
-    if (!response.ok) {
-      throw new Error(`Server responded with status ${response.status}`);
-    }
+
+    if (!response.ok) throw new Error(`Server status ${response.status}`);
 
     const data = await response.json();
     activeBatchResults = data.batch_results || [];
@@ -192,11 +192,13 @@ async function runAnalysis() {
       setupBatchSelector(activeBatchResults);
       loadBatchPair(0);
     } else {
-      alert("Please upload at least 2 files or enter text on both sides to perform cross-comparison.");
+      alert("Please upload at least 2 files or enter text on both sides.");
     }
   } catch (error) {
     console.error("Analysis request failed:", error);
-    alert("Could not connect to the analysis engine. If the server was sleeping, please wait 30 seconds and try again.");
+    alert("Backend instance is booting up. Please wait 10 seconds and tap Run Analysis again!");
+  } finally {
+    if (analyzeBtn) analyzeBtn.innerText = "Run Multi-File Deep Analysis";
   }
 }
 
