@@ -1,0 +1,45 @@
+RDBMS & ORACLE  Database concept  A relational approach
+Data base  •   Electronic store of Data.  •   Repository that stores information about “things”.  •   It also contains relationships among those different “Things”.
+Basic Terms  •   A person, place, event or item is called on   entity .  •   The facts describing an entity are known as   data .  •   Each entity can be described by its characteristics, which are known as attributes. For Ex: gender, first name last name, etc...  •   All the related entities are collected together to form an entity set .  •   A   database   is collection of entity set  •   The interactions between entity sets are called  relationships
+Relationships  •   The database design requires to create an entity set each describing a set of related entities.  •   Establishes all the relationship between the entity sets with in the database.  •   Depending on the type of interaction the relationship are classified into three categories  One - to - one relationship One - to - many relationship Many - to - many relationship
+Entity, Attributes, Relation
+Basic Terms  Entity   Data (Attributes )  Entity Set   Relationships
+Relationship -Examples
+Database management system  Components  •   DBMS   software package such as micro soft access, visual fox pro, micro soft SQL server or oracle.  •   A user developed and implemented   database or databases  that includes tables , a data dictionary and other database objects.  •   Custom   applications   such as data entry form , reports, queries, blocks, and programs.  •   Hardware : personal computer,  •   Software : operating system, network operating system  •   Personnel : database administrator, database designer/analyst
+User  Applications   DBMS   Database  OS Software  Hardware  •   DBMS based on the relational model is also known as RDBMS.
+Important Functions managed by Database  •   Meta data  •   All day to day transactions.  •   Book keeping  •   Transforms logical data requests to match physical data structure.  •   Data Validation  •   Access Security  •   Data Security  •   Data Sharing  •   Import and export utilities
+Types of Database Models  Relational Model  Hierarchical Model  Network Model   Object Model
+Relational Model  •   Tables
+Hierarchical Model  •   Tree
+Network Model  •   Graph
+Object Model  •   Objects
+The Relational Database Model  •   The relational is represented by two dimensional flat Structure know as a   table .  •   Data base system that manages a relational database environment is know as a relational database management system.  •   A table is a matrix of   rows   and   columns  where  –   each row represents an   Record   and each column represents an   Attribute .
+The Relational Database Model  •   Tuple / Record   - Row  •   Attribute / Field   - Column  •   Degree -   number of column in an table  •   Domain   - Set of all possible values that a column may have  •   Key   - Minimal set of columns use to uniquely define any row in a table.
+Table
+Types of Keys
+Types of Keys  Need for indentifying uniquely any row of data in a table.  •   Super Key –   A key with super set of   all possibilities .  •   Candidate key-   Minimal set   of super key  •   Primary key   - A   single column   is used as a unique identifier  •   Composite key - A   combination of a column   is used as a unique identifier ( Composite Primary key)  •   Secondary key -   A more human approach is used to identify or retrieve a row from a table  •   Surrogate key -   An   extra column   as a primary key instead of using a composite key  •   Foreign key -   A column in a table that   references   a column in another table
+Keys -Example   •   Candidate keys  •   SID  •   REGID  •   EMAILID  •   Foreign Key  •   BRANCHID  •   Super keys  •   Not Candidate key  •   SID +REGID  •   REGID +EMAILID  •   EMAILID +SID  •   SID+REGID+EMAILID  SID   REGID   NAME   BRANCHCOD  E  EMAILID  1   12_CS   Adam   CS   adamcs@yahoo.com  2   13_CA   Adam   CA   adamca@yahoo.co.in  3   11_IT   John   IT   johnit@gmail.com  4   14_CS   Esitha   CS   esithacs@yahoo.com  •   Primary Keys  •   REGID  BRANCH CODE   BRANCH NAME  CS   Compuer Science  IT   Information Technology  CA   Computer Application
+Key - Examples
+Mind-Map
+Assignment  •   July 7 /2020  –   Draw an E – R Diagram for Customer and Products Outcome
+Integrity Rules  •   Entity –integrity:   No column in a primary key may be null. The primary key provides the means of uniquely identifying a row or an entity.  •   A Null value means a value that is not known , not entered, not defined, or not applicable.  •   A zero is not considered to be a null value.  •   Referential-integrity:   A foreign key value may be a null value, or it must exist as a value of a primary key in referenced table.
+Theoretical Relational languages  •   Relational algebra , a procedural language.  •   Relational calculus , a nonprocedural language.  •   Third- generations high level   complier languages can be used to manipulate data in a table, but they can only work with one row at a time.  •   The database systems non procedural structured query language is used as a data manipulation sub language
+Relational algebra  •   The relational algebra is a procedural language  •   Set of operations  – Union  – Intersection  – Difference  – Projection  – Selection  – Product  – Assignment  – Join  – Division
+Union  •   Union of two tables results in   retrieval of all rows   that are in one or both tables.  •   The   duplicate rows are eliminated   from the resulting table.  •   Basic requirement  •   Both tables must have the   same degree.  •   The   domains   of   the corresponding columns in two tables   must be same   .
+Union –Example 1  Result = Table1 Union Table 2
+Union –Example 2  EMP_TESTDEISGN = EMP_TEST UNION EMP_DESIGN
+Intersection  •   Intersection of two tables produces a table with rows that are in both tables.  •   The two tables must be union compatible to perform an intersection on them.
+Intersection –Example 1
+Intersection –Example 2  STUD_INS = STUDENT INTERSECTION INSTRUCTOR  STUD_INS
+Projection  •   Projection operation allows us to create a table based on desirable columns from all existing column in a table.  •   The projection operation returns the “Vertical Slices” of a table.
+Difference  •   The intersection of two tables produces a table with rows that are present in the first table but not in the second table.  •   The difference can be performed on union compatible tables only.
+Difference -Example  RES_TABLE = R - S  RESULT_TABLE = S - R  RES_TABLE  RESULT_TABLE
+Selection  •   Selection operation selects the rows from a table based on condition or conditions.  •   The conditional (=,< >,>,>=,<,<=)and the logical operators(AND, OR,NOT) are used along with columns and value to create conditions.  •   The selection operation returns “Horizontal Slices” .
+Selection -Example  EMPLOYEE  E_SAL  E_SAL = Sel (EMPLOYEE : sal > 500)
+Product  Example •   The product of two  tablesis   a combination   every  thing in both tables.  •   It is also known as a Cartesian product.  C= A *B  A   B  C
+Assignment  •   The operation creates a new table from existing table  •   Table_New =   E_SAL  Table_New  Old Table Name  New Table Name
+Division - Example  Proj No  1  2  3  Proj No   PartNo  1   11  2   33  3   11  1   22  2   11  PROJECT   PROJPARTS  PartNo  11   PARTS  PARTS = PROJPARTS / PROJECT
+Join  •   The join is one of the most important operations because of ability to   get related data   from a number of tables.  •   The join is based on common set of values.  •   Other types of joins:  –   Natural join  –   Equijoin  –   Outer join  –   Non equijoin  –   Self join
+Join – Example  COM_PRO = Join(PRODUCT,COMPANY: COMPANY_ID = COMPANY_ID)  PRODUCT  COMPANY  COM_PRO
+Division  •   Division operation is most difficult operation to comprehend  •   It is not as simple as division in mathematics.  •   In relational algebra it identifies rows in one table that have a   certain relationship to all rows in another table.
+Assignment  •   Create Student and Department table and perform all Algebra operations

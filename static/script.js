@@ -1,3 +1,5 @@
+const BACKEND_URL = "https://cuddly-engine-8jcy.onrender.com";
+
 let chartInstance = null;
 let uploadedPrimaryFiles = [];
 let uploadedComparisonFiles = [];
@@ -86,21 +88,27 @@ function renderCompositionChart(directCopy, paraphrase, unique) {
 
 // Saved Docs API Handlers
 async function loadSavedDocsList() {
-  const res = await fetch('/saved-docs');
-  const data = await res.json();
-  const listEl = document.getElementById('savedDocsFileList');
-  if (!listEl) return;
-  
-  listEl.innerHTML = '';
-  data.saved_files.forEach(file => {
-    listEl.innerHTML += `
-      <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-        <label style="color: #cbd5e1;">
-          <input type="checkbox" class="saved-file-checkbox" value="${file}" checked> ${file}
-        </label>
-        <button onclick="deleteSingleSavedDoc('${file}')" style="background: transparent; color: #f87171; border: none; cursor: pointer;">Delete</button>
-      </div>`; 
-  });
+  try {
+    const res = await fetch(`${BACKEND_URL}/saved-docs`);
+    const data = await res.json();
+    const listEl = document.getElementById('savedDocsFileList');
+    if (!listEl) return;
+    
+    listEl.innerHTML = '';
+    if (data.saved_files) {
+      data.saved_files.forEach(file => {
+        listEl.innerHTML += `
+          <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+            <label style="color: #cbd5e1;">
+              <input type="checkbox" class="saved-file-checkbox" value="${file}" checked> ${file}
+            </label>
+            <button onclick="deleteSingleSavedDoc('${file}')" style="background: transparent; color: #f87171; border: none; cursor: pointer;">Delete</button>
+          </div>`; 
+      });
+    }
+  } catch (err) {
+    console.error("Error loading saved docs:", err);
+  }
 }
 
 function toggleSavedDocsList() {
@@ -116,22 +124,30 @@ function toggleSavedDocsList() {
 
 async function deleteSingleSavedDoc(filename) {
   if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
-  await fetch('/saved-docs/delete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ filename })
-  });
-  loadSavedDocsList();
+  try {
+    await fetch(`${BACKEND_URL}/saved-docs/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename })
+    });
+    loadSavedDocsList();
+  } catch (err) {
+    console.error("Error deleting doc:", err);
+  }
 }
 
 async function purgeAllSavedDocs() {
   if (!confirm("Clear all repository documents for the new semester? This cannot be undone.")) return;
-  await fetch('/saved-docs/delete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ purge_all: true })
-  });
-  loadSavedDocsList();
+  try {
+    await fetch(`${BACKEND_URL}/saved-docs/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ purge_all: true })
+    });
+    loadSavedDocsList();
+  } catch (err) {
+    console.error("Error purging docs:", err);
+  }
 }
 
 // Trigger Full Matrix Cross-Analysis
@@ -146,23 +162,31 @@ async function runAnalysis() {
     comparisonDocs.push({ name: "Comparison Input Text", text: document.getElementById('text2').value });
   }
 
-  const useSavedDocs = document.getElementById('toggleSavedDocs').checked;
+  const useSavedDocs = document.getElementById('toggleSavedDocs') ? document.getElementById('toggleSavedDocs').checked : false;
   const selectedSavedFiles = Array.from(document.querySelectorAll('.saved-file-checkbox:checked')).map(cb => cb.value);
 
+  const payload = {
+    primary_docs: primaryDocs, 
+    comparison_docs: comparisonDocs,
+    use_saved_docs: useSavedDocs,
+    selected_saved_files: selectedSavedFiles
+  };
+
   try {
-    const response = await fetch('/analyze', {
+    const response = await fetch(`${BACKEND_URL}/analyze`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        primary_docs: primaryDocs, 
-        comparison_docs: comparisonDocs,
-        use_saved_docs: useSavedDocs,
-        selected_saved_files: selectedSavedFiles
-      })
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
     });
     
+    if (!response.ok) {
+      throw new Error(`Server responded with status ${response.status}`);
+    }
+
     const data = await response.json();
-    activeBatchResults = data.batch_results;
+    activeBatchResults = data.batch_results || [];
 
     if (activeBatchResults.length > 0) {
       setupBatchSelector(activeBatchResults);
@@ -172,6 +196,7 @@ async function runAnalysis() {
     }
   } catch (error) {
     console.error("Analysis request failed:", error);
+    alert("Could not connect to the analysis engine. If the server was sleeping, please wait 30 seconds and try again.");
   }
 }
 
