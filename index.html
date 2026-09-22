@@ -1,145 +1,289 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
   <meta charset="UTF-8">
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>AI Plagiarism & Similarity Engine</title>
 
+
+
   <!-- SEO Meta Tags for Google Search -->
+
   <meta name="description" content="Free multi-document AI plagiarism scanner, similarity text analyzer, and document comparison tool.">
+
   <meta name="keywords" content="plagiarism checker, text similarity engine, AI detector, document comparison">
+
   <meta name="author" content="udhayaraga-tech">
+
   <meta name="google-site-verification" content="1FD1XnSMVqT6IxImWjzJ2E2Th9JaUwQizm6r22YSCSE" />
 
+
+
   <!-- Existing Stylesheets and External Libraries -->
+
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
+
 <body>
 
+
+
   <div class="main-wrapper">
+
     <div class="header-section">
+
       <div class="pill-badge">✨ AI Multi-Document Deep-Scan Pipeline</div>
+
       <h1>Plagiarism & Similarity Engine</h1>
+
       <p class="subtitle">Upload multiple primary files against comparison sources or run batch matrix cross-analysis.</p>
+
     </div>
 
+
+
     <div class="container-card">
-      
+
+     
+
       <div class="input-grid">
-        <div class="input-card">
-          <label class="input-label">Primary Documents (Batch Upload Supported)</label>
-          <textarea id="text1" placeholder="Paste primary text directly here..."></textarea>
-          
-          <div class="upload-divider">— OR UPLOAD FILES (PDF, DOCX, TXT) —</div>
-          <div class="file-upload-row">
-            <button type="button" class="btn-upload" onclick="document.getElementById('fileInput1').click()">Choose Files</button>
-            <input 
-              type="file" 
-              id="fileInput1" 
-              multiple 
-              accept=".txt,.pdf,.docx" 
-              style="display: none;" 
-              onchange="handleMultiFileSelect(this.files, 'fileLabel1', 'text1')"
-            >
-            <span id="fileLabel1" class="file-name-text">0 files selected</span>
-          </div>
-        </div>
 
         <div class="input-card">
-          <label class="input-label">Comparison Target Documents</label>
-          <textarea id="text2" placeholder="Paste comparison target text directly here..."></textarea>
-          
+
+          <label class="input-label">Primary Documents (Batch Upload Supported)</label>
+
+          <textarea id="text1" placeholder="Paste primary text directly here..."></textarea>
+
+         
+
           <div class="upload-divider">— OR UPLOAD FILES (PDF, DOCX, TXT) —</div>
+
           <div class="file-upload-row">
-            <button type="button" class="btn-upload" onclick="document.getElementById('fileInput2').click()">Choose Files</button>
-            <input 
-              type="file" 
-              id="fileInput2" 
-              multiple 
-              accept=".txt,.pdf,.docx" 
-              style="display: none;" 
-              onchange="handleMultiFileSelect(this.files, 'fileLabel2', 'text2')"
+
+            <button type="button" class="btn-upload" onclick="document.getElementById('fileInput1').click()">Choose Files</button>
+
+            <input
+
+              type="file"
+
+              id="fileInput1"
+
+              multiple
+
+              accept=".txt,.pdf,.docx"
+
+              style="display: none;"
+
+              onchange="handleMultiFileSelect(this.files, 'fileLabel1', 'text1')"
+
             >
-            <span id="fileLabel2" class="file-name-text">0 files selected</span>
+
+            <span id="fileLabel1" class="file-name-text">0 files selected</span>
+
           </div>
+
         </div>
+
+
+
+        <div class="input-card">
+
+          <label class="input-label">Comparison Target Documents</label>
+
+          <textarea id="text2" placeholder="Paste comparison target text directly here..."></textarea>
+
+         
+
+          <div class="upload-divider">— OR UPLOAD FILES (PDF, DOCX, TXT) —</div>
+
+          <div class="file-upload-row">
+
+            <button type="button" class="btn-upload" onclick="document.getElementById('fileInput2').click()">Choose Files</button>
+
+            <input
+
+              type="file"
+
+              id="fileInput2"
+
+              multiple
+
+              accept=".txt,.pdf,.docx"
+
+              style="display: none;"
+
+              onchange="handleMultiFileSelect(this.files, 'fileLabel2', 'text2')"
+
+            >
+
+            <span id="fileLabel2" class="file-name-text">0 files selected</span>
+
+          </div>
+
+        </div>
+
       </div>
+
+
 
       <div class="saved-docs-panel" style="margin: 15px 0; padding: 12px; border: 1px solid #334155; border-radius: 8px;">
+
         <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: #f8fafc;">
+
           <input type="checkbox" id="toggleSavedDocs" onchange="toggleSavedDocsList()">
+
           <strong>Compare against Repository (Old Saved Documents)</strong>
+
         </label>
 
+
+
         <div id="savedDocsContainer" class="hidden" style="margin-top: 10px; padding-left: 24px;">
+
           <p style="font-size: 12px; color: #94a3b8;">Select specific past documents to compare against, or leave all checked:</p>
+
           <div id="savedDocsFileList" style="max-height: 120px; overflow-y: auto; margin-bottom: 8px;"></div>
+
           <button type="button" onclick="purgeAllSavedDocs()" style="background: #ef4444; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;">
+
             Clear Repository for New Semester
+
           </button>
+
         </div>
+
       </div>
+
+
 
       <button class="btn-primary" onclick="runAnalysis()">Run Multi-File Deep Analysis</button>
 
+
+
       <div id="batchSelectorContainer" class="batch-selector-bar hidden">
+
         <label for="batchSelect">Active Comparison Pair:</label>
+
         <select id="batchSelect" onchange="loadBatchPair(this.value)"></select>
+
       </div>
+
+
 
       <div class="section-title">Analysis Overview</div>
+
       <div class="metrics-grid">
+
         <div class="metric-card">
+
           <span class="metric-title">Direct Copy</span>
+
           <div id="directCopyScore" class="metric-value">0.0%</div>
+
         </div>
+
         <div class="metric-card">
+
           <span class="metric-title">Paraphrase Similarity</span>
+
           <div id="paraphraseScore" class="metric-value">0.0%</div>
+
         </div>
+
         <div class="metric-card">
+
           <span class="metric-title">AI Content Probability</span>
+
           <div id="aiProbScore" class="metric-value">0%</div>
+
         </div>
+
         <div class="metric-card">
+
           <span class="metric-title">Overall Risk</span>
+
           <div id="overallRiskScore" class="metric-value danger">0.0%</div>
+
         </div>
+
       </div>
+
+
 
       <div class="composition-card">
+
         <div class="composition-left">
+
           <div class="composition-header">
+
             <h3>Content Composition Breakdown</h3>
+
             <p>Visualizing document overlap, semantic matches, and unique content ratio.</p>
+
           </div>
+
           <div class="chart-container">
+
             <canvas id="compositionChart"></canvas>
+
           </div>
+
         </div>
+
         <button class="btn-download" onclick="downloadExecutivePDFReport()">Download Executive PDF Report</button>
+
       </div>
+
+
 
       <div class="comparison-grid">
-        <div class="preview-card">
-          <div class="preview-header">Primary Content (Click highlight to jump match)</div>
-          <div id="primaryContentPreview" class="scroll-content"></div>
-        </div>
 
         <div class="preview-card">
-          <div class="preview-header">Comparison Content (Sync Target)</div>
-          <div id="comparisonContentPreview" class="scroll-content"></div>
+
+          <div class="preview-header">Primary Content (Click highlight to jump match)</div>
+
+          <div id="primaryContentPreview" class="scroll-content"></div>
+
         </div>
+
+
+
+        <div class="preview-card">
+
+          <div class="preview-header">Comparison Content (Sync Target)</div>
+
+          <div id="comparisonContentPreview" class="scroll-content"></div>
+
+        </div>
+
       </div>
 
+
+
     </div>
+
   </div>
 
+
+
   <script src="{{ url_for('static', filename='script.js') }}"></script>
+
 </body>
+
 </html>
